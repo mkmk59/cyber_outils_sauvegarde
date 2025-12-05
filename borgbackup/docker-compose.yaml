@@ -1,0 +1,32 @@
+services:
+  data-app:
+    build: ./data-app
+    container_name: data-app
+    volumes:
+      - app_data:/var/data
+  borg-server:
+    build: ./borg-server
+    container_name: borg-server
+    ports:
+      - "2222:22"
+    environment:
+      - BORG_USER=borg
+      - BORG_PASSWORD=my_secure_password
+    volumes:
+      - borg_repo:/var/borg/repos
+  borg-client:
+    build: ./borg-client
+    container_name: borg-client
+    depends_on:
+      - borg-server
+    environment:
+      - BORG_REPO=ssh://borg@borg-server:/var/borg/repo
+      - BORG_USER=borg
+      - BORG_SERVER=borg-server
+      - BORG_PASSPHRASE=my_secure_password
+    volumes:
+      - app_data:/var/data:ro
+    tty: true
+volumes:
+  app_data:
+  borg_repo:
