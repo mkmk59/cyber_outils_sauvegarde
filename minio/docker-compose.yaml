@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  minio1:
+    image: minio/minio:latest
+    container_name: minio1
+    command: server http://minio{1...4}/data --console-address ":9001"
+    volumes:
+      - minio1_data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    networks:
+      - minio-net
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio2:
+    image: minio/minio:latest
+    container_name: minio2
+    command: server http://minio{1...4}/data --console-address ":9001"
+    volumes:
+      - minio2_data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    networks:
+      - minio-net
+
+  minio3:
+    image: minio/minio:latest
+    container_name: minio3
+    command: server http://minio{1...4}/data --console-address ":9001"
+    volumes:
+      - minio3_data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    networks:
+      - minio-net
+
+  minio4:
+    image: minio/minio:latest
+    container_name: minio4
+    command: server http://minio{1...4}/data --console-address ":9001"
+    volumes:
+      - minio4_data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    networks:
+      - minio-net
+
+volumes:
+  minio1_data:
+  minio2_data:
+  minio3_data:
+  minio4_data:
+
+networks:
+  minio-net:
+    driver: bridge
