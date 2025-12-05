@@ -12,6 +12,7 @@
 8. [Etape 6: Simulation d'attaque](#etape-6-scenario-dattaque-simulation)
 9. [Etape 7: Restauration](#etape-7-restauration-complete)
 10. [Etape 8: Automatisation](#etape-8-mise-en-place-de-la-rotation-et-automatisation)
+11. [Etape 9: Sauvegarde config Borg vers MinIO](#etape-9-sauvegarde-de-la-configuration-borgbackup-vers-minio)
 
 ---
 
@@ -412,3 +413,230 @@ curl http://localhost:3333
 - [x] Fonctionnement apres reinstallation de Ghostfolio
 - [x] Plan de retention documente (7/4/6)
 - [x] Actions reproductibles et documentees
+- [x] Sauvegarde externalisee de la configuration Borg vers MinIO/S3
+
+---
+
+## Etape 9: Sauvegarde de la configuration BorgBackup vers MinIO
+
+### 9.1 Objectif
+
+Sauvegarder la configuration BorgBackup (cles SSH, repository) vers un stockage objet S3 compatible (MinIO) en utilisant Restic. Cela permet une recuperation complete meme si le serveur de sauvegarde principal est perdu.
+
+### 9.2 Architecture etendue
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     RESEAU BACKUP_NETWORK                       │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐           │
+│  │ borg-server │   │    MinIO    │   │restic-client│           │
+│  │    :22      │   │ :9000/:9001 │◀──│   (backup)  │           │
+│  └──────┬──────┘   └──────┬──────┘   └─────────────┘           │
+│         │                 │                                     │
+│  ┌──────┴──────┐   ┌──────┴──────┐                             │
+│  │   Volume    │   │   Volume    │                             │
+│  │  borg_repo  │   │ minio_data  │                             │
+│  └─────────────┘   └─────────────┘                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 9.3 Composants ajoutes
+
+| Conteneur | Role | Description |
+|-----------|------|-------------|
+| minio | Stockage S3 | Serveur de stockage objet compatible S3 |
+| minio-init | Initialisation | Cree le bucket pour Restic |
+| restic-client | Sauvegarde | Sauvegarde la config Borg vers MinIO |
+
+### 9.4 Configuration MinIO
+
+MinIO est configure dans `docker-compose.yaml`:
+
+```yaml
+minio:
+  image: minio/minio:latest
+  command: server /data --console-address ":9001"
+  environment:
+    - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+    - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+  ports:
+    - "9000:9000"   # API S3
+    - "9001:9001"   # Console Web
+  volumes:
+    - minio_data:/data
+```
+
+### 9.5 Demarrage de MinIO et Restic
+
+```bash
+# Mettre a jour le fichier .env avec les credentials MinIO
+# MINIO_ROOT_USER=minioadmin
+# MINIO_ROOT_PASSWORD=votre_mot_de_passe_securise
+# RESTIC_PASSWORD=votre_passphrase_restic
+
+# Demarrer tous les services
+docker-compose up -d
+
+# Verifier que MinIO est accessible
+curl http://localhost:9000/minio/health/live
+```
+
+### 9.6 Initialisation du repository Restic
+
+```bash
+# Acceder au client Restic
+docker exec -it restic-client bash
+
+# Initialiser le repository (une seule fois)
+./init-repo.sh
+```
+
+Sortie attendue:
+```
+==========================================
+INITIALISATION DU REPOSITORY RESTIC
+==========================================
+[INFO] Verification de la connexion a MinIO...
+[INFO] MinIO est accessible
+[INFO] Initialisation du nouveau repository Restic...
+[OK] Repository Restic initialise avec succes
+```
+
+### 9.7 Sauvegarde de la configuration Borg
+
+```bash
+# Dans le conteneur restic-client
+./backup.sh
+```
+
+Ce script sauvegarde:
+- `/backup-source/borg-client-ssh` - Cles SSH du client
+- `/backup-source/borg-server-ssh` - Cles SSH du serveur (authorized_keys)
+- `/backup-source/borg-repo` - Repository BorgBackup complet
+
+Sortie attendue:
+```
+==========================================
+SAUVEGARDE CONFIGURATION BORG VERS MINIO
+==========================================
+[INFO] Fichiers a sauvegarder:
+  - /backup-source/borg-client-ssh (cles SSH client)
+  - /backup-source/borg-server-ssh (cles SSH serveur)
+  - /backup-source/borg-repo (repository Borg)
+
+[INFO] Demarrage de la sauvegarde...
+[OK] Sauvegarde terminee avec succes!
+
+[INFO] Dernier snapshot:
+ID        Time                 Host          Tags
+abc123    2024-01-15 10:30:00  restic-client borg-config,20240115
+```
+
+### 9.8 Lister les snapshots
+
+```bash
+./list.sh
+```
+
+### 9.9 Restauration depuis MinIO
+
+```bash
+# Restaurer le dernier snapshot
+./restore.sh latest
+
+# OU restaurer un snapshot specifique
+./restore.sh abc123def456
+```
+
+Les fichiers sont restaures dans `/tmp/restore-<timestamp>/`.
+
+### 9.10 Acces a la console MinIO
+
+Accedez a http://localhost:9001 pour visualiser les donnees stockees:
+- **Username**: valeur de `MINIO_ROOT_USER`
+- **Password**: valeur de `MINIO_ROOT_PASSWORD`
+
+### 9.11 Politique de retention Restic
+
+Le script `backup.sh` applique automatiquement une retention de 7 snapshots:
+
+```bash
+restic forget --keep-last 7 --prune
+```
+
+### 9.12 Scripts Restic disponibles
+
+| Script | Description |
+|--------|-------------|
+| `init-repo.sh` | Initialise le repository Restic sur MinIO |
+| `backup.sh` | Sauvegarde la configuration Borg |
+| `restore.sh` | Restaure depuis un snapshot |
+| `list.sh` | Liste les snapshots disponibles |
+
+### 9.13 Automatisation
+
+Pour automatiser la sauvegarde Restic, ajoutez a crontab:
+
+```bash
+# Sauvegarde quotidienne a 3h du matin
+0 3 * * * docker exec restic-client /backup-scripts/backup.sh >> /var/log/restic-backup.log 2>&1
+```
+
+### 9.14 Scenario de reprise apres sinistre
+
+En cas de perte totale du serveur de sauvegarde:
+
+1. **Reinstaller l'infrastructure**:
+   ```bash
+   docker-compose up -d minio
+   ```
+
+2. **Restaurer la configuration Borg**:
+   ```bash
+   docker exec -it restic-client ./restore.sh latest
+   ```
+
+3. **Copier les fichiers restaures**:
+   ```bash
+   # Depuis le conteneur restic-client
+   cp -r /tmp/restore-*/backup-source/borg-client-ssh/* /chemin/vers/borg-client/ssh-keys/
+   cp -r /tmp/restore-*/backup-source/borg-server-ssh/* /chemin/vers/borg-server/ssh-keys/
+   ```
+
+4. **Redemarrer les services Borg**:
+   ```bash
+   docker-compose up -d borg-server borg-client
+   ```
+
+---
+
+## Resume des commandes (mis a jour)
+
+### Demarrage initial complet
+
+```bash
+./generate-secrets.sh
+./generate-ssh-keys.sh
+docker-compose up -d
+docker exec -it borg-client ./init-repo.sh
+docker exec -it restic-client ./init-repo.sh
+```
+
+### Sauvegarde complete (Borg + Restic)
+
+```bash
+# Sauvegarde des donnees applicatives
+docker exec -it borg-client ./backup.sh
+
+# Sauvegarde de la configuration Borg vers MinIO
+docker exec -it restic-client ./backup.sh
+```
+
+### Verification
+
+```bash
+docker-compose ps
+docker exec -it borg-client ./list-backups.sh
+docker exec -it restic-client ./list.sh
+curl http://localhost:9000/minio/health/live
+```

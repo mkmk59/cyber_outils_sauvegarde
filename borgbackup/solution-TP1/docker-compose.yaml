@@ -77,6 +77,79 @@ services:
     # Il n'a pas acces direct aux donnees de l'application
 
   # ===========================================
+  # CLUSTER MINIO (Stockage S3 pour Restic)
+  # ===========================================
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Console Web
+    volumes:
+      - minio_data:/data
+    networks:
+      - app_network      # Pour exposer les ports (console web)
+      - backup_network   # Pour communication avec restic-client
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Initialisation du bucket MinIO pour Restic
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin123};
+      mc mb --ignore-existing myminio/borg-config-backup;
+      mc anonymous set none myminio/borg-config-backup;
+      echo 'Bucket borg-config-backup cree avec succes';
+      exit 0;
+      "
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+    
+    networks:
+      - backup_network
+
+  # ===========================================
+  # CLIENT RESTIC (Sauvegarde config Borg vers MinIO)
+  # ===========================================
+  restic-client:
+    build: ./restic-client
+    container_name: restic-client
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      - RESTIC_REPOSITORY=s3:http://minio:9000/borg-config-backup
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD:-restic-secret-password}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - ./borg-client/ssh-keys:/backup-source/borg-client-ssh:ro
+      - ./borg-server/ssh-keys:/backup-source/borg-server-ssh:ro
+      - borg_repo:/backup-source/borg-repo:ro
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - backup_network
+    tty: true
+    stdin_open: true
+
+  # ===========================================
   # CLIENT DE SAUVEGARDE BORG
   # ===========================================
   borg-client:
@@ -134,3 +207,5 @@ volumes:
     name: ghostfolio_borg_repo
   backup_staging:
     name: ghostfolio_backup_staging
+  minio_data:
+    name: ghostfolio_minio_data
