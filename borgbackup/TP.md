@@ -67,4 +67,5 @@ L’application est inutilisable.
 
 ## Étape 8. Mise en place de la rotation et automatisation
 
+## Étape 9. Sauvegarder la configuration bogBackup dans un cluser minio
 
