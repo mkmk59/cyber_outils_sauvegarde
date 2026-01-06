@@ -37,10 +37,8 @@ services:
     volumes:
       # Scripts partages
       - ./scripts:/scripts:ro
-      # Donnees persistantes
+      # Donnees persistantes pour le disque DRBD
       - drbd_node1_data:/data
-      # Donnees DRBD montees
-      - drbd_shared_data1:/mnt/drbd
     networks:
       drbd_net:
         ipv4_address: 172.28.0.11
@@ -77,10 +75,8 @@ services:
     volumes:
       # Scripts partages
       - ./scripts:/scripts:ro
-      # Donnees persistantes
+      # Donnees persistantes pour le disque DRBD
       - drbd_node2_data:/data
-      # Donnees DRBD montees
-      - drbd_shared_data2:/mnt/drbd
     networks:
       drbd_net:
         ipv4_address: 172.28.0.12
@@ -159,17 +155,11 @@ networks:
 # VOLUMES PERSISTANTS
 # =============================================================================
 volumes:
-  # Donnees brutes pour DRBD
+  # Donnees brutes pour DRBD (fichiers disk image)
   drbd_node1_data:
     name: drbd_workshop_node1_data
   drbd_node2_data:
     name: drbd_workshop_node2_data
-
-  # Donnees montees via DRBD
-  drbd_shared_data1:
-    name: drbd_workshop_shared1
-  drbd_shared_data2:
-    name: drbd_workshop_shared2
 
   # PostgreSQL
   postgres_data:

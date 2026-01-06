@@ -70,8 +70,8 @@ RUN chmod +x /entrypoint.sh
 # Exposer le port DRBD
 EXPOSE 7788
 
-# Volume pour les donnees
-VOLUME ["/data", "/mnt/drbd"]
+# Volume pour les donnees (seulement /data, /mnt/drbd sera monte via loop device)
+VOLUME ["/data"]
 
 # Point d'entree
 ENTRYPOINT ["/entrypoint.sh"]
