@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     less \
     htop \
+    bc \
     # PostgreSQL client pour TP avance
     postgresql-client \
     postgresql \
