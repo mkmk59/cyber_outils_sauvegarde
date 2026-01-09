@@ -1,0 +1,173 @@
+# =============================================================================
+# Docker Compose - Workshop HAProxy Load Balancing & Haute Disponibilite
+# =============================================================================
+# Architecture:
+#   - 2 HAProxy (Master/Backup avec Keepalived)
+#   - 3 Backend Web servers
+#   - VIP flottante pour HA
+#
+# Usage:
+#   docker-compose up -d
+#   docker exec -it haproxy1 bash
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # HAPROXY MASTER
+  # ===========================================================================
+  haproxy1:
+    build:
+      context: ./haproxy1
+      dockerfile: Dockerfile
+    container_name: haproxy1
+    hostname: haproxy1
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    environment:
+      - HAPROXY_NODE_NAME=haproxy1
+      - HAPROXY_NODE_IP=172.30.0.11
+      - HAPROXY_ROLE=MASTER
+      - KEEPALIVED_PRIORITY=101
+      - KEEPALIVED_STATE=MASTER
+      - VIP_ADDRESS=172.30.0.100
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./solutions:/solutions:ro
+      - ./configs:/configs:ro
+      - haproxy1_data:/var/lib/haproxy
+    networks:
+      haproxy_net:
+        ipv4_address: 172.30.0.11
+    ports:
+      - "80:80"       # HTTP
+      - "443:443"     # HTTPS
+      - "8404:8404"   # Stats
+      - "8405:8405"   # Prometheus
+    stdin_open: true
+    tty: true
+    command: ["bash", "-c", "/entrypoint.sh && tail -f /dev/null"]
+
+  # ===========================================================================
+  # HAPROXY BACKUP
+  # ===========================================================================
+  haproxy2:
+    build:
+      context: ./haproxy2
+      dockerfile: Dockerfile
+    container_name: haproxy2
+    hostname: haproxy2
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    environment:
+      - HAPROXY_NODE_NAME=haproxy2
+      - HAPROXY_NODE_IP=172.30.0.12
+      - HAPROXY_ROLE=BACKUP
+      - KEEPALIVED_PRIORITY=100
+      - KEEPALIVED_STATE=BACKUP
+      - VIP_ADDRESS=172.30.0.100
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./solutions:/solutions:ro
+      - ./configs:/configs:ro
+      - haproxy2_data:/var/lib/haproxy
+    networks:
+      haproxy_net:
+        ipv4_address: 172.30.0.12
+    ports:
+      - "8081:80"     # HTTP (backup)
+      - "8444:443"    # HTTPS (backup)
+      - "8414:8404"   # Stats (backup)
+    stdin_open: true
+    tty: true
+    command: ["bash", "-c", "/entrypoint.sh && tail -f /dev/null"]
+    depends_on:
+      - haproxy1
+
+  # ===========================================================================
+  # BACKEND WEB SERVERS
+  # ===========================================================================
+  backend1:
+    build:
+      context: ./backend1
+      dockerfile: Dockerfile
+    container_name: backend1
+    hostname: backend1
+    restart: unless-stopped
+    environment:
+      - BACKEND_NAME=backend1
+      - BACKEND_IP=172.30.0.21
+      - BACKEND_COLOR=blue
+    volumes:
+      - ./scripts:/scripts:ro
+    networks:
+      haproxy_net:
+        ipv4_address: 172.30.0.21
+    stdin_open: true
+    tty: true
+
+  backend2:
+    build:
+      context: ./backend2
+      dockerfile: Dockerfile
+    container_name: backend2
+    hostname: backend2
+    restart: unless-stopped
+    environment:
+      - BACKEND_NAME=backend2
+      - BACKEND_IP=172.30.0.22
+      - BACKEND_COLOR=green
+    volumes:
+      - ./scripts:/scripts:ro
+    networks:
+      haproxy_net:
+        ipv4_address: 172.30.0.22
+    stdin_open: true
+    tty: true
+
+  backend3:
+    build:
+      context: ./backend3
+      dockerfile: Dockerfile
+    container_name: backend3
+    hostname: backend3
+    restart: unless-stopped
+    environment:
+      - BACKEND_NAME=backend3
+      - BACKEND_IP=172.30.0.23
+      - BACKEND_COLOR=red
+    volumes:
+      - ./scripts:/scripts:ro
+    networks:
+      haproxy_net:
+        ipv4_address: 172.30.0.23
+    stdin_open: true
+    tty: true
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  haproxy_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+          gateway: 172.30.0.1
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  haproxy1_data:
+    name: haproxy_workshop_haproxy1
+  haproxy2_data:
+    name: haproxy_workshop_haproxy2

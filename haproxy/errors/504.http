@@ -1,0 +1,42 @@
+HTTP/1.1 504 Error
+Cache-Control: no-cache
+Connection: close
+Content-Type: text/html
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error 504</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .error-container {
+            text-align: center;
+        }
+        .error-code {
+            font-size: 8em;
+            color: #e94560;
+            margin: 0;
+        }
+        .error-message {
+            font-size: 1.5em;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1 class="error-code">504</h1>
+        <p class="error-message">Service Temporarily Unavailable</p>
+        <p>HAProxy PS/PCA Training</p>
+    </div>
+</body>
+</html>

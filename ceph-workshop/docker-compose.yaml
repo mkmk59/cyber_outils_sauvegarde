@@ -1,0 +1,329 @@
+# =============================================================================
+# Docker Compose - Workshop Ceph Stockage Distribue
+# =============================================================================
+# Architecture:
+#   - 3 Monitors (MON) avec Manager (MGR) integre
+#   - 3 Object Storage Daemons (OSD)
+#   - 1 Metadata Server (MDS) pour CephFS
+#   - 1 RADOS Gateway (RGW) pour S3
+#   - 1 Client pour les tests
+#
+# Usage:
+#   docker-compose up -d
+#   docker exec -it ceph-mon1 bash
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # MONITORS (MON) + MANAGERS (MGR)
+  # ===========================================================================
+  ceph-mon1:
+    build:
+      context: ./mon1
+      dockerfile: Dockerfile
+    container_name: ceph-mon1
+    hostname: mon1
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=mon
+      - CEPH_NODE_NAME=mon1
+      - CEPH_NODE_IP=172.20.0.11
+      - CEPH_MON_INITIAL_MEMBERS=mon1,mon2,mon3
+      - CEPH_MON_HOST=172.20.0.11,172.20.0.12,172.20.0.13
+      - CEPH_CLUSTER_NETWORK=172.20.0.0/16
+      - CEPH_PUBLIC_NETWORK=172.20.0.0/16
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_mon1_data:/var/lib/ceph
+      - ceph_config:/etc/ceph
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.11
+    ports:
+      - "8443:8443"  # Dashboard
+      - "9283:9283"  # Prometheus metrics
+    stdin_open: true
+    tty: true
+
+  ceph-mon2:
+    build:
+      context: ./mon2
+      dockerfile: Dockerfile
+    container_name: ceph-mon2
+    hostname: mon2
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=mon
+      - CEPH_NODE_NAME=mon2
+      - CEPH_NODE_IP=172.20.0.12
+      - CEPH_MON_INITIAL_MEMBERS=mon1,mon2,mon3
+      - CEPH_MON_HOST=172.20.0.11,172.20.0.12,172.20.0.13
+      - CEPH_CLUSTER_NETWORK=172.20.0.0/16
+      - CEPH_PUBLIC_NETWORK=172.20.0.0/16
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_mon2_data:/var/lib/ceph
+      - ceph_config:/etc/ceph
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.12
+    depends_on:
+      - ceph-mon1
+    stdin_open: true
+    tty: true
+
+  ceph-mon3:
+    build:
+      context: ./mon3
+      dockerfile: Dockerfile
+    container_name: ceph-mon3
+    hostname: mon3
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=mon
+      - CEPH_NODE_NAME=mon3
+      - CEPH_NODE_IP=172.20.0.13
+      - CEPH_MON_INITIAL_MEMBERS=mon1,mon2,mon3
+      - CEPH_MON_HOST=172.20.0.11,172.20.0.12,172.20.0.13
+      - CEPH_CLUSTER_NETWORK=172.20.0.0/16
+      - CEPH_PUBLIC_NETWORK=172.20.0.0/16
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_mon3_data:/var/lib/ceph
+      - ceph_config:/etc/ceph
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.13
+    depends_on:
+      - ceph-mon1
+    stdin_open: true
+    tty: true
+
+  # ===========================================================================
+  # OBJECT STORAGE DAEMONS (OSD)
+  # ===========================================================================
+  ceph-osd1:
+    build:
+      context: ./osd1
+      dockerfile: Dockerfile
+    container_name: ceph-osd1
+    hostname: osd1
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=osd
+      - CEPH_NODE_NAME=osd1
+      - CEPH_OSD_ID=0
+      - CEPH_NODE_IP=172.20.0.21
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_osd1_data:/var/lib/ceph/osd
+      - ceph_config:/etc/ceph:ro
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.21
+    depends_on:
+      - ceph-mon1
+      - ceph-mon2
+      - ceph-mon3
+    stdin_open: true
+    tty: true
+
+  ceph-osd2:
+    build:
+      context: ./osd2
+      dockerfile: Dockerfile
+    container_name: ceph-osd2
+    hostname: osd2
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=osd
+      - CEPH_NODE_NAME=osd2
+      - CEPH_OSD_ID=1
+      - CEPH_NODE_IP=172.20.0.22
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_osd2_data:/var/lib/ceph/osd
+      - ceph_config:/etc/ceph:ro
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.22
+    depends_on:
+      - ceph-mon1
+      - ceph-mon2
+      - ceph-mon3
+    stdin_open: true
+    tty: true
+
+  ceph-osd3:
+    build:
+      context: ./osd3
+      dockerfile: Dockerfile
+    container_name: ceph-osd3
+    hostname: osd3
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=osd
+      - CEPH_NODE_NAME=osd3
+      - CEPH_OSD_ID=2
+      - CEPH_NODE_IP=172.20.0.23
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_osd3_data:/var/lib/ceph/osd
+      - ceph_config:/etc/ceph:ro
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.23
+    depends_on:
+      - ceph-mon1
+      - ceph-mon2
+      - ceph-mon3
+    stdin_open: true
+    tty: true
+
+  # ===========================================================================
+  # METADATA SERVER (MDS) pour CephFS
+  # ===========================================================================
+  ceph-mds:
+    build:
+      context: ./mds
+      dockerfile: Dockerfile
+    container_name: ceph-mds
+    hostname: mds1
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=mds
+      - CEPH_NODE_NAME=mds1
+      - CEPH_NODE_IP=172.20.0.31
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_mds_data:/var/lib/ceph/mds
+      - ceph_config:/etc/ceph:ro
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.31
+    depends_on:
+      - ceph-osd1
+      - ceph-osd2
+      - ceph-osd3
+    stdin_open: true
+    tty: true
+
+  # ===========================================================================
+  # RADOS GATEWAY (RGW) pour S3/Swift
+  # ===========================================================================
+  ceph-rgw:
+    build:
+      context: ./rgw
+      dockerfile: Dockerfile
+    container_name: ceph-rgw
+    hostname: rgw1
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CEPH_NODE_TYPE=rgw
+      - CEPH_NODE_NAME=rgw1
+      - CEPH_NODE_IP=172.20.0.41
+      - CEPH_RGW_PORT=7480
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_rgw_data:/var/lib/ceph/radosgw
+      - ceph_config:/etc/ceph:ro
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.41
+    ports:
+      - "7480:7480"  # S3 API
+    depends_on:
+      - ceph-osd1
+      - ceph-osd2
+      - ceph-osd3
+    stdin_open: true
+    tty: true
+
+  # ===========================================================================
+  # CLIENT pour les tests
+  # ===========================================================================
+  ceph-client:
+    build:
+      context: ./mon1
+      dockerfile: Dockerfile
+    container_name: ceph-client
+    hostname: client
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      - CEPH_NODE_TYPE=client
+      - CEPH_NODE_NAME=client
+      - CEPH_NODE_IP=172.20.0.50
+    volumes:
+      - ./scripts:/scripts:ro
+      - ceph_client_data:/data
+      - ceph_config:/etc/ceph:ro
+    networks:
+      ceph_net:
+        ipv4_address: 172.20.0.50
+    depends_on:
+      - ceph-rgw
+      - ceph-mds
+    stdin_open: true
+    tty: true
+
+# =============================================================================
+# RESEAUX
+# =============================================================================
+networks:
+  ceph_net:
+    driver: bridge
+    name: ceph_workshop_net
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# =============================================================================
+# VOLUMES PERSISTANTS
+# =============================================================================
+volumes:
+  # Configuration partagee
+  ceph_config:
+    name: ceph_workshop_config
+
+  # Monitors
+  ceph_mon1_data:
+    name: ceph_workshop_mon1
+  ceph_mon2_data:
+    name: ceph_workshop_mon2
+  ceph_mon3_data:
+    name: ceph_workshop_mon3
+
+  # OSDs
+  ceph_osd1_data:
+    name: ceph_workshop_osd1
+  ceph_osd2_data:
+    name: ceph_workshop_osd2
+  ceph_osd3_data:
+    name: ceph_workshop_osd3
+
+  # MDS
+  ceph_mds_data:
+    name: ceph_workshop_mds
+
+  # RGW
+  ceph_rgw_data:
+    name: ceph_workshop_rgw
+
+  # Client
+  ceph_client_data:
+    name: ceph_workshop_client

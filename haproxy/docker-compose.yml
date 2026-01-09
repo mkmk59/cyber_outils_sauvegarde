@@ -1,0 +1,180 @@
+version: '3.8'
+
+# =============================================================================
+# LAB HAPROXY POUR FORMATION PS/PCA - CYBERSÉCURITÉ
+# =============================================================================
+# Architecture:
+#   - 2 HAProxy (master/backup) avec Keepalived
+#   - 3 serveurs web backend (nginx)
+#   - 1 serveur API backend
+#   - Network dédié
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose logs -f haproxy-master
+# =============================================================================
+
+networks:
+  haproxy-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+services:
+  # ---------------------------------------------------------------------------
+  # HAProxy Master
+  # ---------------------------------------------------------------------------
+  haproxy-master:
+    image: haproxy:2.8-alpine
+    container_name: haproxy-master
+    hostname: haproxy-master
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.10
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8404:8404"
+    volumes:
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./certs:/etc/haproxy/certs:ro
+      - ./errors:/etc/haproxy/errors:ro
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_nonlocal_bind=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # HAProxy Backup (pour HA)
+  # ---------------------------------------------------------------------------
+  haproxy-backup:
+    image: haproxy:2.8-alpine
+    container_name: haproxy-backup
+    hostname: haproxy-backup
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.11
+    ports:
+      - "8081:80"
+      - "8444:443"
+      - "8405:8404"
+    volumes:
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./certs:/etc/haproxy/certs:ro
+      - ./errors:/etc/haproxy/errors:ro
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_nonlocal_bind=1
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Web Server 1
+  # ---------------------------------------------------------------------------
+  web1:
+    image: nginx:alpine
+    container_name: web1
+    hostname: web1
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.21
+    volumes:
+      - ./webapps/web1:/usr/share/nginx/html:ro
+      - ./config/nginx-health.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Web Server 2
+  # ---------------------------------------------------------------------------
+  web2:
+    image: nginx:alpine
+    container_name: web2
+    hostname: web2
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.22
+    volumes:
+      - ./webapps/web2:/usr/share/nginx/html:ro
+      - ./config/nginx-health.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Web Server 3 (Backup)
+  # ---------------------------------------------------------------------------
+  web3:
+    image: nginx:alpine
+    container_name: web3
+    hostname: web3
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.23
+    volumes:
+      - ./webapps/web3:/usr/share/nginx/html:ro
+      - ./config/nginx-health.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # API Server (simulation)
+  # ---------------------------------------------------------------------------
+  api1:
+    image: python:3.11-alpine
+    container_name: api1
+    hostname: api1
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.31
+    working_dir: /app
+    volumes:
+      - ./api:/app:ro
+    command: python -m http.server 8080
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Prometheus (monitoring)
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    hostname: prometheus
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.50
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana (dashboards)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    hostname: grafana
+    networks:
+      haproxy-net:
+        ipv4_address: 172.21.0.51
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Server 1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { font-size: 3em; margin-bottom: 10px; }
+        .server-id {
+            font-size: 5em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        .info { margin-top: 20px; font-size: 1.2em; }
+        .timestamp { color: #ccc; font-size: 0.9em; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ Web Server</h1>
+        <div class="server-id">1</div>
+        <div class="info">
+            <p>Backend: web1 (172.21.0.21)</p>
+            <p>Formation HAProxy PS/PCA</p>
+        </div>
+        <div class="timestamp">
+            <script>document.write(new Date().toLocaleString());</script>
+        </div>
+    </div>
+</body>
+</html>
