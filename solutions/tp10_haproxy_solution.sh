@@ -2,6 +2,7 @@
 
 ##############################################################################
 # TP10: Scenario PCA Complet - HAProxy Workshop
+# Martial HOCQUETTE / Mark GYURJYAN
 # 
 # Objectifs:
 # - Mettre en pratique tous les concepts de PCA

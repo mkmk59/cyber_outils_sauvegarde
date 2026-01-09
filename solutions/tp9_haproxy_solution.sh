@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP9 Solution: Sécurité HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Protéger HAProxy contre les attaques

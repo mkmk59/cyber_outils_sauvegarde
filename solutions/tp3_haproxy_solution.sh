@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP3 Solution: Configuration des Backends HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Configurer des pools de serveurs (Backends)

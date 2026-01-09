@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP2 Solution: Configuration des Frontends HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 
 set -e

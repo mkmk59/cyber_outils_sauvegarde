@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP5 Solution: Sticky Sessions HAProxy
+#Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Comprendre la persistance de session

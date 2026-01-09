@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP4 Solution: Health Checks HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Configurer différents types de health checks

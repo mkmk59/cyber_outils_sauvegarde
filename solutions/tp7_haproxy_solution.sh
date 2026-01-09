@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP7 Solution: Haute Disponibilité avec Keepalived HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Comprendre le protocole VRRP

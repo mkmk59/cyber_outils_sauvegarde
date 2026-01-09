@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP8 Solution: Monitoring et Statistiques HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Utiliser le dashboard de statistiques

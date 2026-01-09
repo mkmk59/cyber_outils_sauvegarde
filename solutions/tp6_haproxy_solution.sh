@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # TP6 Solution: SSL/TLS Termination HAProxy
+# Martial HOCQUETTE / Mark GYURJYAN
 # =============================================================================
 # Objectifs:
 #   1. Générer des certificats SSL/TLS
