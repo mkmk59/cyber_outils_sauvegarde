@@ -184,8 +184,8 @@ curl http://localhost:8080
 ### Exercice 2.4: Rate Limiting
 
 ```bash
-# Configurer un rate limit
-/scripts/frontend-manage.sh set-rate-limit web-frontend 100
+# Configurer un rate limit sur le frontend cree precedemment
+/scripts/frontend-manage.sh set-rate-limit test-frontend 100
 
 # Tester le rate limiting
 /scripts/stress-test.sh http://localhost 200

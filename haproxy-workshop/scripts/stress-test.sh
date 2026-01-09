@@ -18,17 +18,15 @@ Commands:
   concurrent <n>      - Test avec N connexions simultanees
   duration <sec>      - Test pendant N secondes
   report              - Generer un rapport
-
-Options pour concurrent/duration:
-  -c <num>    - Nombre de connexions simultanees (defaut: 10)
-  -n <num>    - Nombre total de requetes (defaut: 1000)
-  -t <sec>    - Duree du test en secondes
+  <url> [n] [c]       - Test custom: URL, n requetes (defaut: 100), c concurrence (defaut: 10)
 
 Examples:
   /scripts/stress-test.sh quick
   /scripts/stress-test.sh concurrent 50
   /scripts/stress-test.sh duration 30
   /scripts/stress-test.sh report
+  /scripts/stress-test.sh http://localhost 200
+  /scripts/stress-test.sh http://localhost:8080 500 20
 EOF
 }
 
@@ -231,6 +229,13 @@ case "${1:-help}" in
         ;;
     help|--help|-h)
         show_help
+        ;;
+    http://*|https://*)
+        # Custom URL avec nombre de requetes optionnel
+        local url="$1"
+        local requests="${2:-100}"
+        local concurrency="${3:-10}"
+        run_test "$requests" "$concurrency" "$url"
         ;;
     *)
         echo "Commande inconnue: $1"
